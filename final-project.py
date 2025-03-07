@@ -143,7 +143,7 @@ def part_three(X, y, best_k):
     # Regularized Ridge Regression
     ridge_model = Ridge(alpha=1.0)
     scores = cross_val_score(ridge_model, X_clustered, y, cv=kf, scoring='neg_root_mean_squared_error')
-    print("Regularized Model RMSE:", -np.mean(scores))
+    print("K Means Model RMSE:", -np.mean(scores))
 
     # Tune Regularization Parameter
     alphas = [0.1, 1, 10, 100]
