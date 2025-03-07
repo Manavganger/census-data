@@ -110,17 +110,17 @@ def part_two(X):
                 high_correlation_pairs.append((feature_i, feature_j, correlation_matrix[i, j]))
 
     #print("Highly correlated features (index pairs and correlation values):", high_correlation_pairs)
-    return X
+    return X, best_k
 
 
-def part_three(X, y):
+def part_three(X, y, best_k):
     #########################################
     #                PART 3
     #########################################
     scaler = StandardScaler()
     X_standardized = scaler.fit_transform(X)
 
-    # Basic Linear Model
+    # Basic Linear Model (part a)
     model = LinearRegression()
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
@@ -136,7 +136,6 @@ def part_three(X, y):
     np.save("linear_model_params.npy", np.array(model_params))
 
     # Feature Engineering: Add k-means cluster labels as a feature
-    best_k = 5
     kmeans = KMeans(n_clusters=best_k, random_state=42, n_init=10)
     cluster_labels = kmeans.fit_predict(X_standardized)
     X_clustered = np.column_stack((X_standardized, cluster_labels))
@@ -179,8 +178,8 @@ def part_three(X, y):
 def main():
     X,y = init()
     X, y = part_one(X, y)
-    X = part_two(X)
-    X = part_three(X, y)
+    X, best_k = part_two(X)
+    X = part_three(X, y, best_k)
     print("Program ending, goodbye!")
 
 
