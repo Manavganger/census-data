@@ -1,14 +1,19 @@
 import pandas as pd
 import numpy as np
 from ucimlrepo import fetch_ucirepo
-from sklearn.preprocessing import StandardScaler,
+from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 from scipy.linalg import svd
-from sklearn.linear_model import LinearRegression, Ridge,
+from sklearn.linear_model import LinearRegression, Ridge
 from sklearn.model_selection import cross_val_score, train_test_split
-from sklearn.metrics import mean_squared_error,
+from sklearn.metrics import mean_squared_error, confusion_matrix
 from sklearn.model_selection import KFold
 from sklearn.ensemble import RandomForestRegressor
+import seaborn as sns
+import matplotlib
+matplotlib.use("TkAgg")
+import matplotlib.pyplot as plt
+
 
 def init():
     # Fetch dataset
@@ -112,6 +117,28 @@ def part_two(X):
     #print("Highly correlated features (index pairs and correlation values):", high_correlation_pairs)
     return X, best_k
 
+def kmeans_confusion_matrix(X, y, best_k):
+    scaler = StandardScaler()
+    X_standardized = scaler.fit_transform(X)
+
+    kmeans = KMeans(n_clusters=best_k, random_state=42, n_init=10)
+    cluster_labels = kmeans.fit_predict(X_standardized)
+
+    cluster_to_label = {}
+    for cluster in range(best_k):
+        mask = cluster_labels == cluster
+        majority_label = y[mask].mode()[0]  # Most frequent label in the cluster
+        cluster_to_label[cluster] = majority_label
+    y_pred = np.array([cluster_to_label[cluster] for cluster in cluster_labels])
+    cm = confusion_matrix(y, y_pred)
+
+    print("Confusion Matrix:")
+    print("actual <= 50k, pred <= 50k:", cm[0][0])
+    print("actual <= 50k, pred > 50k:", cm[0][1])
+    print("actual > 50k, pred <= 50k:", cm[1][0])
+    print("actual > 50k, pred > 50k:", cm[1][1])
+    print(cm)
+    return cm
 
 def part_three(X, y, best_k):
     #########################################
@@ -127,7 +154,7 @@ def part_three(X, y, best_k):
     scores = cross_val_score(model, X_standardized, y, cv=kf, scoring='neg_root_mean_squared_error')
     print("Basic Linear Model RMSE:", -np.mean(scores))
 
-    # Save model params for each fold
+    # Save model params
     model_params = []
     for train_idx, val_idx in kf.split(X_standardized):
         model.fit(X_standardized[train_idx], y.to_numpy()[train_idx])
@@ -135,17 +162,14 @@ def part_three(X, y, best_k):
 
     np.save("linear_model_params.npy", np.array(model_params))
 
-    # Feature Engineering: Add k-means cluster labels as a feature
+    # Feature Engineering (part b)
     kmeans = KMeans(n_clusters=best_k, random_state=42, n_init=10)
     cluster_labels = kmeans.fit_predict(X_standardized)
     X_clustered = np.column_stack((X_standardized, cluster_labels))
 
-    # Regularized Ridge Regression
     ridge_model = Ridge(alpha=1.0)
     scores = cross_val_score(ridge_model, X_clustered, y, cv=kf, scoring='neg_root_mean_squared_error')
     print("K Means Model RMSE:", -np.mean(scores))
-
-    # Tune Regularization Parameter
     alphas = [0.1, 1, 10, 25, 40, 50, 60, 75, 100]
     best_alpha = None
     best_rmse = float("inf")
@@ -160,12 +184,20 @@ def part_three(X, y, best_k):
 
     print("Best Regularization Alpha:", best_alpha)
 
-    # Train-Test Split and Evaluate Best Ridge Model
-    n_estimators_list = [50, 100, 200]
+    ridge_model_best = Ridge(alpha=best_alpha)
+    ridge_model_best.fit(X_clustered, y)
+    y_pred_ridge = ridge_model_best.predict(X_clustered)
+
+    y_pred_binary_ridge = np.where(y_pred_ridge > 0.5, 1, 0)
+    cm_ridge_binary = confusion_matrix(y, y_pred_binary_ridge)
+    print("Confusion Matrix for Ridge Regression Classifier (Binary Prediction):")
+    print(cm_ridge_binary)
+
+    n_estimators_list = [50]#, 100, 200]
     best_n = None
     best_rmse = float("inf")
 
-    #random forest DD (part d)
+    # Random Forest (part d)
     for n in n_estimators_list:
         rf_model = RandomForestRegressor(n_estimators=n, random_state=42)
         scores = cross_val_score(rf_model, X_clustered, y, cv=kf, scoring='neg_root_mean_squared_error')
@@ -180,12 +212,17 @@ def part_three(X, y, best_k):
     X_train, X_test, y_train, y_test = train_test_split(X_clustered, y, test_size=0.2, random_state=42)
     best_rf = RandomForestRegressor(n_estimators=best_n, random_state=42)
     best_rf.fit(X_train, y_train)
-    y_pred = best_rf.predict(X_test)
+    y_pred_rf = best_rf.predict(X_test)
 
-    test_rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+    test_rmse = np.sqrt(mean_squared_error(y_test, y_pred_rf))
     print("Test Set RMSE with Best Random Forest Model:", test_rmse)
 
     np.save("random_forest_model_params.npy", best_rf.feature_importances_)
+
+    y_pred_binary_rf = np.where(y_pred_rf > 0.5, 1, 0)
+    cm_rf_binary = confusion_matrix(y_test, y_pred_binary_rf)
+    print("Confusion Matrix for Random Forest Classifier (Binary Prediction):")
+    print(cm_rf_binary)
 
     return X
 
@@ -193,6 +230,7 @@ def main():
     X,y = init()
     X, y = part_one(X, y)
     X, best_k = part_two(X)
+    cm = kmeans_confusion_matrix(X, y, best_k)
     X = part_three(X, y, best_k)
     print("Program ending, goodbye!")
 
