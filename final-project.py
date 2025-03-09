@@ -1,14 +1,14 @@
 import pandas as pd
 import numpy as np
 from ucimlrepo import fetch_ucirepo
-from sklearn.preprocessing import StandardScaler, PolynomialFeatures
+from sklearn.preprocessing import StandardScaler,
 from sklearn.cluster import KMeans
 from scipy.linalg import svd
-from sklearn.linear_model import LinearRegression, Ridge, LogisticRegression
+from sklearn.linear_model import LinearRegression, Ridge,
 from sklearn.model_selection import cross_val_score, train_test_split
-from sklearn.metrics import mean_squared_error, confusion_matrix
+from sklearn.metrics import mean_squared_error,
 from sklearn.model_selection import KFold
-
+from sklearn.ensemble import RandomForestRegressor
 
 def init():
     # Fetch dataset
@@ -146,7 +146,7 @@ def part_three(X, y, best_k):
     print("K Means Model RMSE:", -np.mean(scores))
 
     # Tune Regularization Parameter
-    alphas = [0.1, 1, 10, 100]
+    alphas = [0.1, 1, 10, 25, 40, 50, 60, 75, 100]
     best_alpha = None
     best_rmse = float("inf")
     for alpha in alphas:
@@ -161,17 +161,31 @@ def part_three(X, y, best_k):
     print("Best Regularization Alpha:", best_alpha)
 
     # Train-Test Split and Evaluate Best Ridge Model
+    n_estimators_list = [50, 100, 200]
+    best_n = None
+    best_rmse = float("inf")
+
+    #random forest DD (part d)
+    for n in n_estimators_list:
+        rf_model = RandomForestRegressor(n_estimators=n, random_state=42)
+        scores = cross_val_score(rf_model, X_clustered, y, cv=kf, scoring='neg_root_mean_squared_error')
+        avg_rmse = -np.mean(scores)
+        print(f"n_estimators {n}, RMSE: {avg_rmse}")
+        if avg_rmse < best_rmse:
+            best_rmse = avg_rmse
+            best_n = n
+
+    print("Best n_estimators for Random Forest:", best_n)
+
     X_train, X_test, y_train, y_test = train_test_split(X_clustered, y, test_size=0.2, random_state=42)
-    best_ridge = Ridge(alpha=best_alpha)
-    best_ridge.fit(X_train, y_train)
-    y_pred = best_ridge.predict(X_test)
+    best_rf = RandomForestRegressor(n_estimators=best_n, random_state=42)
+    best_rf.fit(X_train, y_train)
+    y_pred = best_rf.predict(X_test)
 
-    # Fix RMSE computation
     test_rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-    print("Test Set RMSE with Best Ridge Model:", test_rmse)
+    print("Test Set RMSE with Best Random Forest Model:", test_rmse)
 
-    # Save model parameters
-    np.save("ridge_model_params.npy", best_ridge.coef_)
+    np.save("random_forest_model_params.npy", best_rf.feature_importances_)
 
     return X
 
