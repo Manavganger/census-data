@@ -226,12 +226,48 @@ def part_three(X, y, best_k):
 
     return X
 
+def part_four(X, y):
+    best_alpha = 100
+    linear_params = np.load("linear_model_params.npy")
+
+    mean_params = np.mean(linear_params, axis=0)
+    std_params = np.std(linear_params, axis=0)
+
+    print("Numerical Stability of Linear Regression Model (3a)")
+    print("Mean of Parameters:", mean_params)
+    print("Standard Deviation of Parameters:", std_params)
+    print("Mean Std Dev across Parameters:", np.mean(std_params))
+
+    ridge_model_best = Ridge(alpha=best_alpha)
+    ridge_model_best.fit(X, y)
+    ridge_params = ridge_model_best.coef_
+
+    mean_ridge = np.mean(ridge_params)
+    std_ridge = np.std(ridge_params)
+
+    print("\nNumerical Stability of Ridge Regression Model (3b)")
+    print("Mean of Parameters:", mean_ridge)
+    print("Standard Deviation of Parameters:", std_ridge)
+
+    # Compute the norm of Ridge model parameters
+    ridge_norm = np.linalg.norm(ridge_params)
+    print("\nNorm of Ridge Regression Model Parameters (3c):", ridge_norm)
+
+    rf_importances = np.load("random_forest_model_params.npy")  # Shape: (num_features,)
+
+    mean_importance = np.mean(rf_importances)
+    std_importance = np.std(rf_importances)
+
+    print("\nNumerical Stability of Random Forest Model (3d)")
+    print("Mean of Feature Importances:", mean_importance)
+    print("Standard Deviation of Feature Importances:", std_importance)
 def main():
     X,y = init()
     X, y = part_one(X, y)
     X, best_k = part_two(X)
     cm = kmeans_confusion_matrix(X, y, best_k)
     X = part_three(X, y, best_k)
+    part_four(X,y)
     print("Program ending, goodbye!")
 
 
